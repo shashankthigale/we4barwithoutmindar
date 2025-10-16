@@ -1,0 +1,23 @@
+# WebAR Project
+
+# User assets (replace with your own)
+poster.png
+overlay.mp4
+
+# Recorded videos
+ar-recording-*.webm
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+
