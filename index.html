@@ -251,36 +251,7 @@
         display: none;
       }
 
-      /* Error Message */
-      #errorMessage {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        padding: 2rem;
-        background: rgba(244, 67, 54, 0.95);
-        color: white;
-        border-radius: 12px;
-        max-width: 90%;
-        text-align: center;
-        z-index: 1001;
-        display: none;
-      }
-
-      #errorMessage.active {
-        display: block;
-      }
-
-      .error-title {
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-      }
-
-      .error-text {
-        font-size: 1rem;
-        opacity: 0.95;
-      }
+      /* Error messages only in console - no UI display */
     </style>
   </head>
   <body>
@@ -316,12 +287,6 @@
     <!-- Composite Canvas for Recording -->
     <canvas id="compositeCanvas"></canvas>
 
-    <!-- Error Message -->
-    <div id="errorMessage">
-      <div class="error-title">Error</div>
-      <div class="error-text" id="errorText"></div>
-    </div>
-
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -350,9 +315,8 @@
       }
 
       function onOpenCvError() {
-        showError(
-          "Failed to load OpenCV.js",
-          "Please refresh the page and try again."
+        console.error(
+          "Failed to load OpenCV.js - Please refresh the page and try again."
         );
       }
 
@@ -387,10 +351,11 @@
         }
 
         if (!cvReady) {
-          showError(
-            "OpenCV Loading Timeout",
-            "Slow internet connection. Please refresh and try again."
+          console.error(
+            "OpenCV Loading Timeout - Slow internet connection. Please refresh and try again."
           );
+          document.getElementById("loadingScreen").classList.remove("active");
+          document.getElementById("startScreen").classList.remove("hidden");
           return;
         }
 
@@ -404,26 +369,22 @@
           arSystem = new ARImageTracker();
           await arSystem.initialize();
 
-          document.getElementById("loadingScreen").classList.remove("active");
-          document.getElementById("arContainer").classList.add("active");
+          // Hide loading and show AR container
+          const loadingScreen = document.getElementById("loadingScreen");
+          const arContainer = document.getElementById("arContainer");
+
+          loadingScreen.classList.remove("active");
+          loadingScreen.style.display = "none";
+          arContainer.classList.add("active");
+          arContainer.style.display = "block";
 
           arSystem.start();
         } catch (error) {
           console.error("AR initialization error:", error);
-          showError("AR Initialization Failed", error.message);
+          // Return to start screen on error
+          document.getElementById("loadingScreen").classList.remove("active");
+          document.getElementById("startScreen").classList.remove("hidden");
         }
-      }
-
-      // Show error message
-      function showError(title, message) {
-        document
-          .getElementById("errorMessage")
-          .querySelector(".error-title").textContent = title;
-        document
-          .getElementById("errorMessage")
-          .querySelector(".error-text").textContent = message;
-        document.getElementById("errorMessage").classList.add("active");
-        document.getElementById("loadingScreen").classList.remove("active");
       }
 
       // Toggle recording
@@ -490,7 +451,6 @@
           document.getElementById("recordButton").classList.add("recording");
         } catch (error) {
           console.error("Recording error:", error);
-          showError("Recording Failed", error.message);
         }
       }
 
