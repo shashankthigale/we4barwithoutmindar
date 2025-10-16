@@ -308,17 +308,19 @@
       let recordedChunks = [];
 
       // OpenCV ready callback - defined globally before script loads
-      window.onOpenCvReady = function() {
+      window.onOpenCvReady = function () {
         cvReady = true;
         console.log("OpenCV.js ready");
-        if (typeof updateLoadingText === 'function') {
+        if (typeof updateLoadingText === "function") {
           updateLoadingText("OpenCV.js loaded!", "Preparing AR system...");
         }
-      }
+      };
 
-      window.onOpenCvError = function() {
-        console.error("Failed to load OpenCV.js - Please refresh the page and try again.");
-      }
+      window.onOpenCvError = function () {
+        console.error(
+          "Failed to load OpenCV.js - Please refresh the page and try again."
+        );
+      };
 
       function updateLoadingText(main, details) {
         const textEl = document.getElementById("loadingText");
@@ -332,7 +334,7 @@
         console.log("Starting AR Experience...");
         const startScreen = document.getElementById("startScreen");
         const loadingScreen = document.getElementById("loadingScreen");
-        
+
         startScreen.classList.add("hidden");
         startScreen.style.display = "none";
         loadingScreen.classList.add("active");
@@ -344,12 +346,12 @@
 
         while (!cvReady && attempts < maxAttempts) {
           // Check if cv object exists (OpenCV loaded)
-          if (typeof cv !== 'undefined' && cv.Mat) {
+          if (typeof cv !== "undefined" && cv.Mat) {
             cvReady = true;
             console.log("OpenCV.js detected and ready");
             break;
           }
-          
+
           await new Promise((resolve) => setTimeout(resolve, 100));
           attempts++;
 
@@ -363,7 +365,7 @@
           }
         }
 
-        if (!cvReady && typeof cv === 'undefined') {
+        if (!cvReady && typeof cv === "undefined") {
           console.error(
             "OpenCV Loading Failed - Please check internet connection and refresh."
           );
@@ -393,17 +395,17 @@
           arContainer.style.display = "block";
 
           arSystem.start();
-         } catch (error) {
-           console.error("AR initialization error:", error);
-           // Return to start screen on error
-           const loadingScreen = document.getElementById("loadingScreen");
-           const startScreen = document.getElementById("startScreen");
-           
-           loadingScreen.classList.remove("active");
-           loadingScreen.style.display = "none";
-           startScreen.classList.remove("hidden");
-           startScreen.style.display = "flex";
-         }
+        } catch (error) {
+          console.error("AR initialization error:", error);
+          // Return to start screen on error
+          const loadingScreen = document.getElementById("loadingScreen");
+          const startScreen = document.getElementById("startScreen");
+
+          loadingScreen.classList.remove("active");
+          loadingScreen.style.display = "none";
+          startScreen.classList.remove("hidden");
+          startScreen.style.display = "flex";
+        }
       }
 
       // Toggle recording
