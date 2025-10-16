@@ -307,17 +307,17 @@
       let mediaRecorder = null;
       let recordedChunks = [];
 
-      // OpenCV ready callback
-      function onOpenCvReady() {
+      // OpenCV ready callback - defined globally before script loads
+      window.onOpenCvReady = function() {
         cvReady = true;
         console.log("OpenCV.js ready");
-        updateLoadingText("OpenCV.js loaded!", "Preparing AR system...");
+        if (typeof updateLoadingText === 'function') {
+          updateLoadingText("OpenCV.js loaded!", "Preparing AR system...");
+        }
       }
 
-      function onOpenCvError() {
-        console.error(
-          "Failed to load OpenCV.js - Please refresh the page and try again."
-        );
+      window.onOpenCvError = function() {
+        console.error("Failed to load OpenCV.js - Please refresh the page and try again.");
       }
 
       function updateLoadingText(main, details) {
@@ -329,14 +329,27 @@
 
       // Start AR Experience
       async function startARExperience() {
-        document.getElementById("startScreen").classList.add("hidden");
-        document.getElementById("loadingScreen").classList.add("active");
+        console.log("Starting AR Experience...");
+        const startScreen = document.getElementById("startScreen");
+        const loadingScreen = document.getElementById("loadingScreen");
+        
+        startScreen.classList.add("hidden");
+        startScreen.style.display = "none";
+        loadingScreen.classList.add("active");
+        loadingScreen.style.display = "flex";
 
         // Wait for OpenCV with better feedback
         let attempts = 0;
         const maxAttempts = 100; // 10 seconds max
 
         while (!cvReady && attempts < maxAttempts) {
+          // Check if cv object exists (OpenCV loaded)
+          if (typeof cv !== 'undefined' && cv.Mat) {
+            cvReady = true;
+            console.log("OpenCV.js detected and ready");
+            break;
+          }
+          
           await new Promise((resolve) => setTimeout(resolve, 100));
           attempts++;
 
@@ -350,11 +363,12 @@
           }
         }
 
-        if (!cvReady) {
+        if (!cvReady && typeof cv === 'undefined') {
           console.error(
-            "OpenCV Loading Timeout - Slow internet connection. Please refresh and try again."
+            "OpenCV Loading Failed - Please check internet connection and refresh."
           );
           document.getElementById("loadingScreen").classList.remove("active");
+          document.getElementById("loadingScreen").style.display = "none";
           document.getElementById("startScreen").classList.remove("hidden");
           return;
         }
@@ -379,12 +393,17 @@
           arContainer.style.display = "block";
 
           arSystem.start();
-        } catch (error) {
-          console.error("AR initialization error:", error);
-          // Return to start screen on error
-          document.getElementById("loadingScreen").classList.remove("active");
-          document.getElementById("startScreen").classList.remove("hidden");
-        }
+         } catch (error) {
+           console.error("AR initialization error:", error);
+           // Return to start screen on error
+           const loadingScreen = document.getElementById("loadingScreen");
+           const startScreen = document.getElementById("startScreen");
+           
+           loadingScreen.classList.remove("active");
+           loadingScreen.style.display = "none";
+           startScreen.classList.remove("hidden");
+           startScreen.style.display = "flex";
+         }
       }
 
       // Toggle recording
