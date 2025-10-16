@@ -1,0 +1,58 @@
+{
+  "name": "webar-image-tracking",
+  "version": "1.0.0",
+  "description": "Production-ready WebAR image tracking application with custom computer vision implementation",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 8000 -c-1 --cors",
+    "start:ssl": "http-server -p 8443 -S -C cert.pem -K key.pem --cors",
+    "generate-cert": "openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 365 -out cert.pem -subj '/CN=localhost'",
+    "optimize-image": "pngquant poster.png --quality=85-95 --output poster.png --force",
+    "optimize-video": "ffmpeg -i overlay.mp4 -vcodec libx264 -preset slow -crf 23 -vf scale=1280:720 -acodec aac -b:a 128k -movflags +faststart overlay_optimized.mp4",
+    "test": "npm run start",
+    "deploy:netlify": "netlify deploy --prod",
+    "deploy:vercel": "vercel --prod"
+  },
+  "keywords": [
+    "webAR",
+    "augmented-reality",
+    "image-tracking",
+    "computer-vision",
+    "opencv",
+    "three.js",
+    "webgl",
+    "ar",
+    "tracking",
+    "orb",
+    "feature-detection"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "optionalDependencies": {
+    "netlify-cli": "^17.0.0",
+    "vercel": "^32.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/webar-image-tracking.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/webar-image-tracking/issues"
+  },
+  "homepage": "https://github.com/yourusername/webar-image-tracking#readme",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "browserslist": [
+    "iOS >= 14",
+    "Android >= 10",
+    "Chrome >= 90",
+    "Safari >= 14",
+    "Edge >= 90"
+  ]
+}
+

@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>WebAR Image Tracking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        #startScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .start-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .start-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 3rem;
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .start-button {
+            padding: 1.2rem 3rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 999;
+        }
+
+        #loadingScreen.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1.5rem;
+            font-size: 1.1rem;
+            color: white;
+            font-weight: 500;
+        }
+
+        /* AR Container */
+        #arContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        #arContainer.active {
+            display: block;
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #arCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Tracking Indicator */
+        #trackingIndicator {
+            position: fixed;
+            top: env(safe-area-inset-top, 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.8rem 1.5rem;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 100;
+            transition: background-color 0.3s ease;
+        }
+
+        #trackingIndicator.found {
+            background: rgba(76, 175, 80, 0.8);
+        }
+
+        #trackingIndicator.searching {
+            background: rgba(255, 152, 0, 0.8);
+        }
+
+        /* Instructions */
+        #instructions {
+            position: fixed;
+            bottom: calc(env(safe-area-inset-bottom, 20px) + 100px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.8rem 1.5rem;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 80%;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        #instructions.hidden {
+            opacity: 0;
+        }
+
+        /* Record Button */
+        #recordButton {
+            position: fixed;
+            bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px;
+            height: 70px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 101;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            padding: 5px;
+        }
+
+        #recordButton:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+
+        .record-inner {
+            width: 100%;
+            height: 100%;
+            background: #ff0000;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        #recordButton.recording .record-inner {
+            border-radius: 8px;
+            transform: scale(0.5);
+        }
+
+        /* Composite Canvas (hidden) */
+        #compositeCanvas {
+            display: none;
+        }
+
+        /* Error Message */
+        #errorMessage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 2rem;
+            background: rgba(244, 67, 54, 0.95);
+            color: white;
+            border-radius: 12px;
+            max-width: 90%;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+
+        #errorMessage.active {
+            display: block;
+        }
+
+        .error-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-text {
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1 class="start-title">🎯 WebAR Image Tracking</h1>
+        <p class="start-subtitle">Track images and overlay videos in real-time</p>
+        <button class="start-button" onclick="startARExperience()">Start AR Experience</button>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <div class="spinner"></div>
+        <p class="loading-text">Initializing AR...</p>
+    </div>
+
+    <!-- AR Container -->
+    <div id="arContainer">
+        <video id="videoElement" playsinline autoplay muted></video>
+        <canvas id="arCanvas"></canvas>
+        <div id="trackingIndicator" class="searching">Searching for target</div>
+        <div id="instructions">Point camera at the target image</div>
+        <button id="recordButton" onclick="toggleRecording()">
+            <div class="record-inner"></div>
+        </button>
+    </div>
+
+    <!-- Composite Canvas for Recording -->
+    <canvas id="compositeCanvas"></canvas>
+
+    <!-- Error Message -->
+    <div id="errorMessage">
+        <div class="error-title">Error</div>
+        <div class="error-text" id="errorText"></div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- OpenCV.js -->
+    <script async src="https://docs.opencv.org/4.5.2/opencv.js" onload="onOpenCvReady()" onerror="onOpenCvError()"></script>
+
+    <script>
+        // Global state
+        let cvReady = false;
+        let arSystem = null;
+        let stream = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        // OpenCV ready callback
+        function onOpenCvReady() {
+            cvReady = true;
+            console.log('OpenCV.js ready');
+        }
+
+        function onOpenCvError() {
+            showError('Failed to load OpenCV.js', 'Please refresh the page and try again.');
+        }
+
+        // Start AR Experience
+        async function startARExperience() {
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.add('active');
+
+            // Wait for OpenCV
+            let attempts = 0;
+            while (!cvReady && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!cvReady) {
+                showError('OpenCV Loading Timeout', 'Please refresh the page and try again.');
+                return;
+            }
+
+            try {
+                // Initialize AR system
+                arSystem = new ARImageTracker();
+                await arSystem.initialize();
+
+                document.getElementById('loadingScreen').classList.remove('active');
+                document.getElementById('arContainer').classList.add('active');
+
+                arSystem.start();
+            } catch (error) {
+                console.error('AR initialization error:', error);
+                showError('AR Initialization Failed', error.message);
+            }
+        }
+
+        // Show error message
+        function showError(title, message) {
+            document.getElementById('errorMessage').querySelector('.error-title').textContent = title;
+            document.getElementById('errorMessage').querySelector('.error-text').textContent = message;
+            document.getElementById('errorMessage').classList.add('active');
+            document.getElementById('loadingScreen').classList.remove('active');
+        }
+
+        // Toggle recording
+        function toggleRecording() {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        // Start recording
+        async function startRecording() {
+            try {
+                const compositeCanvas = document.getElementById('compositeCanvas');
+                const canvasStream = compositeCanvas.captureStream(60);
+
+                // Get audio stream
+                let audioStream = null;
+                try {
+                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch (e) {
+                    console.warn('Audio not available:', e);
+                }
+
+                // Combine video and audio
+                let tracks = canvasStream.getVideoTracks();
+                if (audioStream) {
+                    tracks = tracks.concat(audioStream.getAudioTracks());
+                }
+
+                const combinedStream = new MediaStream(tracks);
+
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(combinedStream, {
+                    mimeType: 'video/webm;codecs=vp9'
+                });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ar-recording-${Date.now()}.webm`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    // Stop audio tracks
+                    if (audioStream) {
+                        audioStream.getTracks().forEach(track => track.stop());
+                    }
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                document.getElementById('recordButton').classList.add('recording');
+
+            } catch (error) {
+                console.error('Recording error:', error);
+                showError('Recording Failed', error.message);
+            }
+        }
+
+        // Stop recording
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('recordButton').classList.remove('recording');
+            }
+        }
+
+        // One-Euro Filter for smooth tracking
+        class OneEuroFilter {
+            constructor(minCutoff = 1.0, beta = 0.007, dcutoff = 1.0) {
+                this.minCutoff = minCutoff;
+                this.beta = beta;
+                this.dcutoff = dcutoff;
+                this.x = null;
+                this.dx = 0;
+                this.lastTime = null;
+            }
+
+            filter(value, timestamp) {
+                if (this.lastTime === null) {
+                    this.lastTime = timestamp;
+                    this.x = value;
+                    return value;
+                }
+
+                const dt = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+
+                if (dt <= 0) return this.x;
+
+                // Estimate derivative
+                const edValue = this.x === null ? 0 : (value - this.x) / dt;
+                const edCutoff = this.smoothingFactor(dt, this.dcutoff);
+                this.dx = this.exponentialSmoothing(edValue, this.dx, edCutoff);
+
+                // Filter value
+                const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
+                const alpha = this.smoothingFactor(dt, cutoff);
+                this.x = this.exponentialSmoothing(value, this.x, alpha);
+
+                return this.x;
+            }
+
+            smoothingFactor(dt, cutoff) {
+                const r = 2 * Math.PI * cutoff * dt;
+                return r / (r + 1);
+            }
+
+            exponentialSmoothing(a, b, alpha) {
+                return alpha * a + (1 - alpha) * b;
+            }
+        }
+
+        // AR Image Tracker Class
+        class ARImageTracker {
+            constructor() {
+                this.video = document.getElementById('videoElement');
+                this.canvas = document.getElementById('arCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.compositeCanvas = document.getElementById('compositeCanvas');
+                this.compositeCtx = this.compositeCanvas.getContext('2d');
+                
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.videoPlane = null;
+                this.overlayVideo = null;
+                
+                this.targetImage = null;
+                this.targetKeypoints = null;
+                this.targetDescriptors = null;
+                
+                this.isTracking = false;
+                this.trackingLost = true;
+                this.lostFrames = 0;
+                
+                // Filters for smooth tracking
+                this.positionFilters = {
+                    x: new OneEuroFilter(0.5, 0.005, 1.0),
+                    y: new OneEuroFilter(0.5, 0.005, 1.0),
+                    z: new OneEuroFilter(0.5, 0.005, 1.0)
+                };
+                
+                this.rotationFilters = {
+                    x: new OneEuroFilter(0.5, 0.005, 1.0),
+                    y: new OneEuroFilter(0.5, 0.005, 1.0),
+                    z: new OneEuroFilter(0.5, 0.005, 1.0)
+                };
+
+                this.lastTimestamp = 0;
+                this.fadeOpacity = 0;
+            }
+
+            async initialize() {
+                // Load target image
+                await this.loadTargetImage();
+
+                // Initialize camera
+                await this.initializeCamera();
+
+                // Initialize Three.js
+                this.initializeThreeJS();
+
+                // Load overlay video
+                await this.loadOverlayVideo();
+
+                // Extract target features
+                this.extractTargetFeatures();
+            }
+
+            async loadTargetImage() {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        this.targetImage = img;
+                        resolve();
+                    };
+                    img.onerror = () => reject(new Error('Failed to load target image (poster.png)'));
+                    img.src = 'poster.png';
+                });
+            }
+
+            async initializeCamera() {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+
+                    this.video.srcObject = stream;
+                    await this.video.play();
+
+                    // Wait for video to be ready
+                    return new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.canvas.width = this.video.videoWidth;
+                            this.canvas.height = this.video.videoHeight;
+                            this.compositeCanvas.width = this.video.videoWidth;
+                            this.compositeCanvas.height = this.video.videoHeight;
+                            resolve();
+                        };
+                    });
+                } catch (error) {
+                    throw new Error('Camera access denied or unavailable');
+                }
+            }
+
+            initializeThreeJS() {
+                // Scene
+                this.scene = new THREE.Scene();
+
+                // Camera
+                const aspect = this.canvas.width / this.canvas.height;
+                this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+                this.camera.position.z = 5;
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: this.canvas,
+                    alpha: true,
+                    antialias: true
+                });
+                this.renderer.setSize(this.canvas.width, this.canvas.height);
+                this.renderer.setClearColor(0x000000, 0);
+            }
+
+            async loadOverlayVideo() {
+                return new Promise((resolve, reject) => {
+                    this.overlayVideo = document.createElement('video');
+                    this.overlayVideo.src = 'overlay.mp4';
+                    this.overlayVideo.loop = true;
+                    this.overlayVideo.muted = true;
+                    this.overlayVideo.playsInline = true;
+                    this.overlayVideo.crossOrigin = 'anonymous';
+
+                    this.overlayVideo.onloadeddata = () => {
+                        // Create video texture
+                        const videoTexture = new THREE.VideoTexture(this.overlayVideo);
+                        videoTexture.minFilter = THREE.LinearFilter;
+                        videoTexture.magFilter = THREE.LinearFilter;
+
+                        // Create plane geometry
+                        const aspect = this.overlayVideo.videoWidth / this.overlayVideo.videoHeight;
+                        const geometry = new THREE.PlaneGeometry(2, 2 / aspect);
+                        const material = new THREE.MeshBasicMaterial({
+                            map: videoTexture,
+                            transparent: true,
+                            opacity: 0,
+                            side: THREE.DoubleSide
+                        });
+
+                        this.videoPlane = new THREE.Mesh(geometry, material);
+                        this.videoPlane.visible = false;
+                        this.scene.add(this.videoPlane);
+
+                        resolve();
+                    };
+
+                    this.overlayVideo.onerror = () => reject(new Error('Failed to load overlay video (overlay.mp4)'));
+                });
+            }
+
+            extractTargetFeatures() {
+                // Convert target image to OpenCV mat
+                const targetMat = cv.imread(this.targetImage);
+                const gray = new cv.Mat();
+                cv.cvtColor(targetMat, gray, cv.COLOR_RGBA2GRAY);
+
+                // Detect ORB features
+                const orb = new cv.ORB(500);
+                this.targetKeypoints = new cv.KeyPointVector();
+                this.targetDescriptors = new cv.Mat();
+                orb.detectAndCompute(gray, new cv.Mat(), this.targetKeypoints, this.targetDescriptors);
+
+                console.log(`Extracted ${this.targetKeypoints.size()} features from target image`);
+
+                targetMat.delete();
+                gray.delete();
+                orb.delete();
+            }
+
+            start() {
+                this.isTracking = true;
+                this.processFrame();
+            }
+
+            processFrame() {
+                if (!this.isTracking) return;
+
+                const timestamp = performance.now();
+
+                try {
+                    // Capture current frame
+                    const frameMat = this.captureFrame();
+                    if (!frameMat) {
+                        requestAnimationFrame(() => this.processFrame());
+                        return;
+                    }
+
+                    // Detect and match features
+                    const { keypoints, descriptors, matches } = this.detectAndMatch(frameMat);
+
+                    // Check if tracking is successful
+                    if (matches && matches.size() >= 10) {
+                        // Estimate pose
+                        const pose = this.estimatePose(matches, keypoints);
+
+                        if (pose) {
+                            this.updateAROverlay(pose, timestamp);
+                            this.updateTrackingStatus(true);
+                            this.lostFrames = 0;
+                        } else {
+                            this.lostFrames++;
+                        }
+                    } else {
+                        this.lostFrames++;
+                    }
+
+                    // Handle tracking loss
+                    if (this.lostFrames > 5) {
+                        this.updateTrackingStatus(false);
+                    }
+
+                    // Cleanup
+                    frameMat.delete();
+                    if (keypoints) keypoints.delete();
+                    if (descriptors) descriptors.delete();
+                    if (matches) matches.delete();
+
+                } catch (error) {
+                    console.error('Frame processing error:', error);
+                }
+
+                // Render
+                this.render();
+
+                // Continue processing
+                requestAnimationFrame(() => this.processFrame());
+            }
+
+            captureFrame() {
+                try {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = 640;
+                    tempCanvas.height = 480;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(this.video, 0, 0, 640, 480);
+
+                    const frameMat = cv.imread(tempCanvas);
+                    return frameMat;
+                } catch (error) {
+                    console.error('Capture frame error:', error);
+                    return null;
+                }
+            }
+
+            detectAndMatch(frameMat) {
+                const gray = new cv.Mat();
+                cv.cvtColor(frameMat, gray, cv.COLOR_RGBA2GRAY);
+
+                // Detect features
+                const orb = new cv.ORB(500);
+                const keypoints = new cv.KeyPointVector();
+                const descriptors = new cv.Mat();
+                orb.detectAndCompute(gray, new cv.Mat(), keypoints, descriptors);
+
+                let matches = null;
+
+                // Match features
+                if (descriptors.rows > 0 && this.targetDescriptors.rows > 0) {
+                    const bf = new cv.BFMatcher(cv.NORM_HAMMING, true);
+                    matches = new cv.DMatchVector();
+                    bf.match(this.targetDescriptors, descriptors, matches);
+
+                    // Filter good matches
+                    const goodMatches = new cv.DMatchVector();
+                    for (let i = 0; i < matches.size(); i++) {
+                        const match = matches.get(i);
+                        if (match.distance < 50) {
+                            goodMatches.push_back(match);
+                        }
+                    }
+
+                    matches.delete();
+                    matches = goodMatches;
+                    bf.delete();
+                }
+
+                gray.delete();
+                orb.delete();
+
+                return { keypoints, descriptors, matches };
+            }
+
+            estimatePose(matches, frameKeypoints) {
+                if (matches.size() < 10) return null;
+
+                try {
+                    // Extract matched points
+                    const srcPoints = [];
+                    const dstPoints = [];
+
+                    for (let i = 0; i < matches.size(); i++) {
+                        const match = matches.get(i);
+                        const trainIdx = match.trainIdx;
+                        const queryIdx = match.queryIdx;
+
+                        const srcPt = this.targetKeypoints.get(queryIdx).pt;
+                        const dstPt = frameKeypoints.get(trainIdx).pt;
+
+                        srcPoints.push(srcPt.x, srcPt.y);
+                        dstPoints.push(dstPt.x, dstPt.y);
+                    }
+
+                    // Create OpenCV mats
+                    const srcMat = cv.matFromArray(matches.size(), 1, cv.CV_32FC2, srcPoints);
+                    const dstMat = cv.matFromArray(matches.size(), 1, cv.CV_32FC2, dstPoints);
+
+                    // Find homography
+                    const homography = cv.findHomography(srcMat, dstMat, cv.RANSAC, 3.0);
+
+                    if (homography.empty()) {
+                        srcMat.delete();
+                        dstMat.delete();
+                        homography.delete();
+                        return null;
+                    }
+
+                    // Simple pose estimation from homography
+                    const h = homography.data64F;
+                    
+                    // Normalize and extract rotation/translation
+                    const pose = {
+                        position: {
+                            x: h[2] / 100,
+                            y: -h[5] / 100,
+                            z: -5
+                        },
+                        rotation: {
+                            x: Math.atan2(h[7], h[8]) * 0.5,
+                            y: Math.atan2(-h[6], Math.sqrt(h[7] * h[7] + h[8] * h[8])) * 0.5,
+                            z: Math.atan2(h[3], h[0]) * 0.5
+                        }
+                    };
+
+                    srcMat.delete();
+                    dstMat.delete();
+                    homography.delete();
+
+                    return pose;
+                } catch (error) {
+                    console.error('Pose estimation error:', error);
+                    return null;
+                }
+            }
+
+            updateAROverlay(pose, timestamp) {
+                if (!this.videoPlane) return;
+
+                // Apply One-Euro filter
+                const filteredPos = {
+                    x: this.positionFilters.x.filter(pose.position.x, timestamp),
+                    y: this.positionFilters.y.filter(pose.position.y, timestamp),
+                    z: this.positionFilters.z.filter(pose.position.z, timestamp)
+                };
+
+                const filteredRot = {
+                    x: this.rotationFilters.x.filter(pose.rotation.x, timestamp),
+                    y: this.rotationFilters.y.filter(pose.rotation.y, timestamp),
+                    z: this.rotationFilters.z.filter(pose.rotation.z, timestamp)
+                };
+
+                // Update plane position and rotation
+                this.videoPlane.position.set(filteredPos.x, filteredPos.y, filteredPos.z);
+                this.videoPlane.rotation.set(filteredRot.x, filteredRot.y, filteredRot.z);
+
+                // Fade in
+                if (!this.videoPlane.visible) {
+                    this.videoPlane.visible = true;
+                    this.overlayVideo.play();
+                    this.fadeOpacity = 0;
+                }
+
+                if (this.fadeOpacity < 1) {
+                    this.fadeOpacity = Math.min(1, this.fadeOpacity + 0.05);
+                    this.videoPlane.material.opacity = this.fadeOpacity;
+                }
+            }
+
+            updateTrackingStatus(found) {
+                const indicator = document.getElementById('trackingIndicator');
+                const instructions = document.getElementById('instructions');
+
+                if (found && this.trackingLost) {
+                    this.trackingLost = false;
+                    indicator.textContent = 'Target Found';
+                    indicator.className = 'found';
+                    setTimeout(() => {
+                        instructions.classList.add('hidden');
+                    }, 2000);
+                } else if (!found && !this.trackingLost) {
+                    this.trackingLost = true;
+                    indicator.textContent = 'Searching for target';
+                    indicator.className = 'searching';
+                    instructions.classList.remove('hidden');
+
+                    // Fade out video
+                    if (this.videoPlane && this.videoPlane.visible) {
+                        this.fadeOpacity = 0;
+                        this.videoPlane.material.opacity = 0;
+                        this.videoPlane.visible = false;
+                        this.overlayVideo.pause();
+                    }
+                }
+            }
+
+            render() {
+                // Render Three.js scene
+                this.renderer.render(this.scene, this.camera);
+
+                // Update composite canvas for recording
+                this.compositeCtx.drawImage(this.video, 0, 0, this.compositeCanvas.width, this.compositeCanvas.height);
+                this.compositeCtx.drawImage(this.canvas, 0, 0, this.compositeCanvas.width, this.compositeCanvas.height);
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            if (isRecording) {
+                stopRecording();
+            }
+        });
+    </script>
+</body>
+</html>
+
